@@ -1,0 +1,58 @@
+@media only screen and (min-width: 1024px){
+    #app-view {
+        width: 80%;
+    }
+}
+@media only screen and (max-width: 1024px) {
+    #app-view {
+        width: 90%;
+    }
+}
+@media only screen and (max-width: 767px){
+    #app-view {
+        width: 100%;
+    }
+}
+
+#app-menu li {                
+    display: inline-block;
+    background-color: blue;
+}
+
+#app-menu li:hover {        
+    background-color: lightblue;
+}
+
+.room-list a{             
+    display: inline-block;
+    align-items: left;
+}
+
+.room-list li {
+    background-color: lightgray;
+}
+.room-list li:hover{
+    background-color: lightblue;
+}
+
+.page-control {
+    background-color: blue;
+    display: inline-block;
+    position:absolute;
+    bottom: 10px;
+}
+
+
+
+/* Task 5 */
+.message span{
+    display: block;
+    float: left;
+    clear: both;
+}
+
+.my-message {
+    float: right;
+    clear: both;
+    background-color: lightskyblue;
+}
