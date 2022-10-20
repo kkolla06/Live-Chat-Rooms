@@ -12,8 +12,13 @@ function createDOM (htmlString){
     return template.content.firstChild;
 }
 
+var profile = {
+    username: "Alice"
+};
+
 class LobbyView {
-    constructor () {
+    constructor (lobby) {
+        this.lobby = lobby;
         this.elem = createDOM(
             `<div class="content">
                 <ul class="room-list">
@@ -32,6 +37,56 @@ class LobbyView {
         this.listElem = this.elem.querySelector("ul.room-list");
         this.inputElem = this.elem.querySelector("input");
         this.buttonElem = this.elem.querySelector("button");
+
+        /* ***TODO*** Task 6D */
+        var self = this;
+
+        // this.buttonElem.addEventListener("click", onClick); 
+        // var onClick = function () {
+        //     self.lobby.addRoom("room5", self.inputElem);
+        //     console.log("**************************Reached");
+        //     // emptyDOM(this.inputElem);
+        //     self.inputElem.value = '';
+        // }
+
+        this.buttonElem.addEventListener("click", (event) => {
+            self.lobby.addRoom("room5", self.inputElem);    //****TODO is this fine?
+            console.log("**************************Reached");
+            self.inputElem.value = ''; //*** why do these not work?: self.inputElem = ''; and: emptyDOM(this.inputElem);
+        });
+
+        this.redrawList();
+
+        /* ***TODO*** Task 7B */
+        this.lobby.onNewRoom = function(room) {
+            self.room = room;
+            var li = document.createElement("li");
+            var a = document.createElement("a");
+            a.href = "#/chat/" + self.room.key;
+            var image = document.createElement("img");
+            image.src = self.room.image;
+            a.appendChild(image);
+            var text = document.createTextNode(self.room.name);
+            a.appendChild(text);
+            li.appendChild(a);
+            self.listElem.appendChild(li);
+        }
+    }
+
+    redrawList() {
+        emptyDOM(this.listElem);
+        for(var key in this.lobby.rooms) {  // ***TODO*** Task 6C
+            var li = document.createElement("li");
+            var a = document.createElement("a");
+            a.href = "#/chat/" + key;
+            var image = document.createElement("img");
+            image.src = this.lobby.rooms[key].image;
+            a.appendChild(image);
+            var text = document.createTextNode(this.lobby.rooms[key].name);
+            a.appendChild(text);
+            li.appendChild(a);
+            this.listElem.appendChild(li);
+        }
     }
 }
 
@@ -62,6 +117,88 @@ class ChatView {
         this.chatElem = this.elem.querySelector("div.message-list");
         this.inputElem = this.elem.querySelector("textarea");
         this.buttonElem = this.elem.querySelector("button");
+
+        this.room = null;
+        // this.room = new Room("test5", "still testing"); //***REMOVE */
+        var self = this;
+
+        this.buttonElem.addEventListener("click", function() {
+            self.sendMessage();
+        });
+
+        // this.inputElem.addEventListener("keyup", function() {
+        //     self.sendMessage();
+        // }); 
+        //***TODO How?: only if the key is the "enter" key without the "shift" key
+        this.inputElem.addEventListener("keyup", function(event) {
+            if (event.code == 'Enter'  && !event.shiftKey) {
+                self.sendMessage();
+            }
+        });
+    }
+
+    sendMessage() {
+        this.room.addMessage(profile.username, this.inputElem.value);
+        this.inputElem.value = '';
+    }
+
+    setRoom(room) {
+        this.room = room; //or this.room = room;
+        this.titleElem.textContent = this.room.name;
+        var self = this;
+        emptyDOM(this.chatElem); // why does this not work: this.chatElem.value = ''; ??
+
+        for(var msg in this.room.messages) {  //***** TODO Task 8E
+            var div_msg = document.createElement("div");
+            var span_user = document.createElement("span");
+            var span_msg = document.createElement("span");
+
+            if(msg.username == profile.username) {
+                div_msg.className = "message my-message";
+                span_user.className = "message-user";
+                var user = document.createTextNode(msg.username);
+                span_msg.className = "message-text";
+                var user_msg = document.createTextNode(msg.text);
+            } else {
+                div_msg.className = "message";
+                span_user.className = "message-user";
+                var user = document.createTextNode(profile.username);
+                span_msg.className = "message-text";
+                var user_msg = document.createTextNode(msg.text);
+            }
+            div_msg.appendChild(span_user);
+            span_user.appendChild(user);
+            div_msg.appendChild(span_msg);
+            span_msg.appendChild(user_msg);
+
+            this.chatElem.appendChild(div_msg);
+        }
+
+        this.room.onNewMessage = function(message) {
+            var div_msg = document.createElement("div");
+            var span_user = document.createElement("span");
+            var span_msg = document.createElement("span");
+
+            if(message.username == profile.username) {
+                div_msg.className = "message my-message";
+                span_user.className = "message-user";
+                var user = document.createTextNode(message.username);
+                span_msg.className = "message-text";
+                var user_msg = document.createTextNode(message.text);
+            } else {
+                div_msg.className = "message";
+                span_user.className = "message-user";
+                var user = document.createTextNode(profile.username);
+                span_msg.className = "message-text";
+                var user_msg = document.createTextNode(message.text);
+            }
+            div_msg.appendChild(span_user);
+            span_user.appendChild(user);
+            div_msg.appendChild(span_msg);
+            span_msg.appendChild(user_msg);
+
+            self.chatElem.appendChild(div_msg);
+        }
     }
 }
 
@@ -100,30 +237,32 @@ class Room {
     }
 
     addMessage(username, text) {
-        if(text.trim() == "") {
+        if(text.trim() == "") { //why cant i use text.trim()?? *****TODO
             return 0;
         }
         var msg = {
             username: username,
             text: text
         };
-
         this.messages.push(msg);
+
+        if(this.onNewMessage != undefined) {
+            this.onNewMessage(msg);
+        }
     }
 }
 
-// ***TODO*** Task 5C & 5D & 5E??
 class Lobby {
-    constructor () {        //5C
-        // this.rooms = {k1:Room.id, id:new Room()};
+    constructor () {        
         this.rooms = {
-            "1": new Room(1, "room1"),
-            "2": new Room(1, "room2"),
-            "3": new Room(1, "room3"),
-            "4": new Room(1, "room4") };
+            "room1": new Room("room1", "Everyone in CPEN 400D", "assets/everyone-icon.png"),
+            "room2": new Room("room2", "Cancuks Fans", "assets/canucks.png"),
+            "room3": new Room("room3", "Minecraft Mavericks", "assets/minecraft.jpg"),
+            "room4": new Room("room4", "Foodies Only", "assets/bibimbap.jpg") 
+        };
     }
 
-    getRoom(roomId) {       //5D
+    getRoom(roomId) { 
         for(var key in this.rooms) {
             if(key == roomId) {
                 return this.rooms[key];
@@ -132,15 +271,20 @@ class Lobby {
         return null;
     }
 
-    addRoom(id, name, image, messages) {       //5E
-        var room = new Room(id, name, image, messages);
-        this.rooms[id] = room;
+    addRoom(id, name, image, messages) {
+        var newRoom = new Room(id, name, image, messages);
+        this.rooms[id] = newRoom;
+
+        if(this.onNewRoom != undefined) {
+            this.onNewRoom(newRoom);
+        }
     }
 }
 
 
 function main () {
-    var lobbyView = new LobbyView();
+    var lobby = new Lobby();
+    var lobbyView = new LobbyView(lobby);
     var chatView = new ChatView();
     var profileView = new ProfileView();
 
@@ -153,6 +297,13 @@ function main () {
             var content = lobbyView.elem;
         } 
         else if(urlHash.includes("#/chat")) {
+            var link = urlHash.split('/');
+            var roomId = link[2];
+            var room = lobby.getRoom(roomId);
+
+            if(room != null) {
+                chatView.setRoom(room);
+            }
             var content = chatView.elem;
         } 
         else if(urlHash.includes("#/profile")) {
@@ -166,7 +317,7 @@ function main () {
     window.addEventListener("popstate", renderRoute);
 
     // Testing
-    cpen322.export(arguments.callee, {renderRoute, lobbyView, chatView, profileView});
+    cpen322.export(arguments.callee, {renderRoute, lobbyView, chatView, profileView, lobby});
 }
 
 window.addEventListener("load", main);
