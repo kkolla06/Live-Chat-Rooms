@@ -38,31 +38,20 @@ class LobbyView {
         this.inputElem = this.elem.querySelector("input");
         this.buttonElem = this.elem.querySelector("button");
 
-        /* ***TODO*** Task 6D */
         var self = this;
 
-        // this.buttonElem.addEventListener("click", onClick); 
-        // var onClick = function () {
-        //     self.lobby.addRoom("room5", self.inputElem);
-        //     console.log("**************************Reached");
-        //     // emptyDOM(this.inputElem);
-        //     self.inputElem.value = '';
-        // }
-
         this.buttonElem.addEventListener("click", (event) => {
-            self.lobby.addRoom("room5", self.inputElem);    //****TODO is this fine?
-            console.log("**************************Reached");
+            self.lobby.addRoom("room5", self.inputElem.value);
             self.inputElem.value = ''; //*** why do these not work?: self.inputElem = ''; and: emptyDOM(this.inputElem);
         });
 
         this.redrawList();
 
-        /* ***TODO*** Task 7B */
         this.lobby.onNewRoom = function(room) {
             self.room = room;
             var li = document.createElement("li");
             var a = document.createElement("a");
-            a.href = "#/chat/" + self.room.key;
+            a.href = "#/chat/" + self.room.id;
             var image = document.createElement("img");
             image.src = self.room.image;
             a.appendChild(image);
@@ -75,7 +64,7 @@ class LobbyView {
 
     redrawList() {
         emptyDOM(this.listElem);
-        for(var key in this.lobby.rooms) {  // ***TODO*** Task 6C
+        for(var key in this.lobby.rooms) { 
             var li = document.createElement("li");
             var a = document.createElement("a");
             a.href = "#/chat/" + key;
@@ -119,17 +108,11 @@ class ChatView {
         this.buttonElem = this.elem.querySelector("button");
 
         this.room = null;
-        // this.room = new Room("test5", "still testing"); //***REMOVE */
-        var self = this;
 
+        var self = this;
         this.buttonElem.addEventListener("click", function() {
             self.sendMessage();
         });
-
-        // this.inputElem.addEventListener("keyup", function() {
-        //     self.sendMessage();
-        // }); 
-        //***TODO How?: only if the key is the "enter" key without the "shift" key
         this.inputElem.addEventListener("keyup", function(event) {
             if (event.code == 'Enter'  && !event.shiftKey) {
                 self.sendMessage();
@@ -153,18 +136,20 @@ class ChatView {
             var span_user = document.createElement("span");
             var span_msg = document.createElement("span");
 
+            console.log("*****************messages: " + this.room.messages[msg].username);
+
             if(msg.username == profile.username) {
                 div_msg.className = "message my-message";
                 span_user.className = "message-user";
-                var user = document.createTextNode(msg.username);
+                var user = document.createTextNode(profile.username);
                 span_msg.className = "message-text";
-                var user_msg = document.createTextNode(msg.text);
+                var user_msg = document.createTextNode(this.room.messages[msg].text);
             } else {
                 div_msg.className = "message";
                 span_user.className = "message-user";
-                var user = document.createTextNode(profile.username);
+                var user = document.createTextNode(this.room.messages[msg].username);
                 span_msg.className = "message-text";
-                var user_msg = document.createTextNode(msg.text);
+                var user_msg = document.createTextNode(this.room.messages[msg].text);
             }
             div_msg.appendChild(span_user);
             span_user.appendChild(user);
@@ -182,13 +167,13 @@ class ChatView {
             if(message.username == profile.username) {
                 div_msg.className = "message my-message";
                 span_user.className = "message-user";
-                var user = document.createTextNode(message.username);
+                var user = document.createTextNode(profile.username);
                 span_msg.className = "message-text";
                 var user_msg = document.createTextNode(message.text);
             } else {
                 div_msg.className = "message";
                 span_user.className = "message-user";
-                var user = document.createTextNode(profile.username);
+                var user = document.createTextNode(message.username);
                 span_msg.className = "message-text";
                 var user_msg = document.createTextNode(message.text);
             }
@@ -246,7 +231,7 @@ class Room {
         };
         this.messages.push(msg);
 
-        if(this.onNewMessage != undefined) {
+        if(this.onNewMessage) {
             this.onNewMessage(msg);
         }
     }
