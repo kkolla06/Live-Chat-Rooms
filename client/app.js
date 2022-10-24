@@ -1,3 +1,8 @@
+/**
+ * Name: Kaushik Kolla
+ * Student #: 74167503
+ */
+
 /* Given helper functions: */
 // Removes the contents of the given DOM element (equivalent to elem.innerHTML = '' but faster)
 function emptyDOM (elem){
