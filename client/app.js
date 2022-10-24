@@ -1,5 +1,4 @@
 /* Given helper functions: */
-
 // Removes the contents of the given DOM element (equivalent to elem.innerHTML = '' but faster)
 function emptyDOM (elem){
     while (elem.firstChild) elem.removeChild(elem.firstChild);
@@ -11,6 +10,7 @@ function createDOM (htmlString){
     template.innerHTML = htmlString.trim();
     return template.content.firstChild;
 }
+
 
 var profile = {
     username: "Alice"
@@ -42,7 +42,7 @@ class LobbyView {
 
         this.buttonElem.addEventListener("click", (event) => {
             self.lobby.addRoom("room5", self.inputElem.value);
-            self.inputElem.value = ''; //*** why do these not work?: self.inputElem = ''; and: emptyDOM(this.inputElem);
+            self.inputElem.value = '';
         });
 
         this.redrawList();
@@ -97,7 +97,7 @@ class ChatView {
                 </div>
                 
                 <div class="page-control">
-                    <textarea name="" id="" cols="30" rows="1">    </textarea>
+                    <textarea name="" id="" cols="30" rows="1"></textarea>
                     <button>Send</button>
                 </div>
             </div>`
@@ -126,17 +126,15 @@ class ChatView {
     }
 
     setRoom(room) {
-        this.room = room; //or this.room = room;
+        this.room = room; 
         this.titleElem.textContent = this.room.name;
         var self = this;
-        emptyDOM(this.chatElem); // why does this not work: this.chatElem.value = ''; ??
+        emptyDOM(this.chatElem);
 
-        for(var msg in this.room.messages) {  //***** TODO Task 8E
+        for(var msg in this.room.messages) {  
             var div_msg = document.createElement("div");
             var span_user = document.createElement("span");
             var span_msg = document.createElement("span");
-
-            console.log("*****************messages: " + this.room.messages[msg].username);
 
             if(msg.username == profile.username) {
                 div_msg.className = "message my-message";
@@ -213,6 +211,7 @@ class ProfileView {
     }
 }
 
+
 class Room {
     constructor (id, name, image = 'assets/everyone-icon.png', messages = []) {
         this.id = id;
@@ -222,7 +221,7 @@ class Room {
     }
 
     addMessage(username, text) {
-        if(text.trim() == "") { //why cant i use text.trim()?? *****TODO
+        if(text.trim() == "") {
             return 0;
         }
         var msg = {
@@ -243,7 +242,7 @@ class Lobby {
             "room1": new Room("room1", "Everyone in CPEN 400D", "assets/everyone-icon.png"),
             "room2": new Room("room2", "Cancuks Fans", "assets/canucks.png"),
             "room3": new Room("room3", "Minecraft Mavericks", "assets/minecraft.jpg"),
-            "room4": new Room("room4", "Foodies Only", "assets/bibimbap.jpg") 
+            "room4": new Room("room4", "Foodies Only", "assets/bibimbap.jpg")
         };
     }
 
@@ -257,11 +256,13 @@ class Lobby {
     }
 
     addRoom(id, name, image, messages) {
-        var newRoom = new Room(id, name, image, messages);
-        this.rooms[id] = newRoom;
+        if(name != "" && name != null) {
+            var newRoom = new Room(id, name, image, messages);
+            this.rooms[id] = newRoom;
 
-        if(this.onNewRoom != undefined) {
-            this.onNewRoom(newRoom);
+            if(this.onNewRoom != undefined) {
+                this.onNewRoom(newRoom);
+            }
         }
     }
 }
@@ -301,7 +302,7 @@ function main () {
     renderRoute();
     window.addEventListener("popstate", renderRoute);
 
-    // Testing
+    // Exporting variables for testing
     cpen322.export(arguments.callee, {renderRoute, lobbyView, chatView, profileView, lobby});
 }
 
