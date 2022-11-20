@@ -1,7 +1,5 @@
-/**
- * Name: Kaushik Kolla
- * Student #: 74167503
- */
+// const { rejects } = require("assert");
+// const { Console } = require("console");
 
 /* Given helper functions: */
 // Removes the contents of the given DOM element (equivalent to elem.innerHTML = '' but faster)
@@ -16,6 +14,49 @@ function createDOM (htmlString){
     return template.content.firstChild;
 }
 
+var Service = {
+    origin: window.location.origin,
+    getAllRooms: function() {
+        var getReq = new XMLHttpRequest();
+        getReq.open("GET", Service.origin + "/chat");
+        getReq.send();
+
+        return new Promise((onResolve, onReject) => {
+            getReq.onload = function() {
+                if(getReq.status == 200) {
+                    onResolve(JSON.parse(getReq.responseText));
+                } else {
+                    onReject(new Error(getReq.responseText));
+                }
+            }
+
+            getReq.onerror = function() {
+                onReject(new Error(getReq.responseText));
+            }
+        })
+    },
+    addRoom: function(data) {
+        var postReq = new XMLHttpRequest();
+        postReq.open("POST", Service.origin + "/chat");
+        postReq.setRequestHeader('Content-type', 'application/json');
+        postReq.send(JSON.stringify(data));
+
+        return new Promise((onResolve, onReject) => {
+            postReq.onload = function() {
+                if(postReq.status == 200) {
+                    onResolve(JSON.parse(postReq.responseText));
+                } else {
+                    onReject(new Error(postReq.responseText));
+                }
+            }
+
+            postReq.onerror = function() {
+                onReject(new Error(postReq.responseText));
+            }
+        }) 
+    }
+
+};
 
 var profile = {
     username: "Alice"
@@ -46,7 +87,18 @@ class LobbyView {
         var self = this;
 
         this.buttonElem.addEventListener("click", (event) => {
-            self.lobby.addRoom("room5", self.inputElem.value);
+            var data = {
+                name: self.inputElem.value.trim(),
+                image: "assets/everyone-icon.png"
+            }
+            var newRoom = Service.addRoom(data);
+            newRoom.then((result) => {
+                self.lobby.addRoom(result.id, result.name, result.image, result.messages);
+            },
+            (reject) => {
+                console.log("Error: addRoom Proimse - " + reject);
+            });
+
             self.inputElem.value = '';
         });
 
@@ -85,7 +137,8 @@ class LobbyView {
 }
 
 class ChatView {
-    constructor () {
+    constructor (socket) {
+        this.socket = socket;
         this.elem = createDOM(
             `<div class="content">
                 <h4 class="room-name"> Everyone in CPEN 400D </h4>
@@ -126,7 +179,13 @@ class ChatView {
     }
 
     sendMessage() {
-        this.room.addMessage(profile.username, this.inputElem.value);
+        this.room.addMessage(profile.username, this.inputElem.value);        
+        var sendMsg = {
+            roomId: this.room.id,
+            username: profile.username,
+            text: this.inputElem.value
+        };
+        this.socket.send(JSON.stringify(sendMsg));
         this.inputElem.value = '';
     }
 
@@ -243,12 +302,7 @@ class Room {
 
 class Lobby {
     constructor () {        
-        this.rooms = {
-            "room1": new Room("room1", "Everyone in CPEN 400D", "assets/everyone-icon.png"),
-            "room2": new Room("room2", "Cancuks Fans", "assets/canucks.png"),
-            "room3": new Room("room3", "Minecraft Mavericks", "assets/minecraft.jpg"),
-            "room4": new Room("room4", "Foodies Only", "assets/bibimbap.jpg")
-        };
+        this.rooms = {};
     }
 
     getRoom(roomId) { 
@@ -276,7 +330,8 @@ class Lobby {
 function main () {
     var lobby = new Lobby();
     var lobbyView = new LobbyView(lobby);
-    var chatView = new ChatView();
+    var socket = new WebSocket("ws://localhost:3000");
+    var chatView = new ChatView(socket);
     var profileView = new ProfileView();
 
     function renderRoute() {
@@ -307,8 +362,36 @@ function main () {
     renderRoute();
     window.addEventListener("popstate", renderRoute);
 
+    function refreshLobby() {
+        var refresh = Service.getAllRooms();
+        refresh.then(
+            (result) => {
+                for(var refreshRoom of result) {
+                    if(refreshRoom.id in lobby.rooms) {
+                        lobby.getRoom(refreshRoom.id).name = refreshRoom.name; 
+                        lobby.getRoom(refreshRoom.id).image = refreshRoom.image;
+                    } else {
+                        lobby.addRoom(refreshRoom.id, refreshRoom.name, refreshRoom.image, refreshRoom.messages);
+                    }
+                }
+            },
+            (reject) => {
+                console.log("Refresh Lobby Error");
+            }
+        )
+    }
+
+    refreshLobby();
+    var timer = setInterval(refreshLobby, 10000);
+
+    socket.addEventListener("message", (event) => {
+        var msgData = JSON.parse(event.data);
+        var room = lobby.getRoom(msgData.roomId);
+        room.addMessage(msgData.username, msgData.text);
+    })
+
     // Exporting variables for testing
-    cpen322.export(arguments.callee, {renderRoute, lobbyView, chatView, profileView, lobby});
+    cpen322.export(arguments.callee, {renderRoute, lobbyView, chatView, profileView, lobby, refreshLobby, socket});
 }
 
 window.addEventListener("load", main);
