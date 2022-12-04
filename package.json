@@ -1,6 +1,9 @@
 {
 	"dependencies": {
+		"dotenv": "^16.0.3",
 		"express": "^4.18.1",
+		"mongodb": "^4.12.1",
+		"mongosh": "^1.6.0",
 		"ws": "^8.11.0"
 	},
 	"devDependencies": {

@@ -14,6 +14,33 @@ function createDOM (htmlString){
     return template.content.firstChild;
 }
 
+function* makeConversationLoader(room) {
+    var LastConv;
+    var timestamp = room.timeCreated;
+    while (room.canLoadConversation) {
+        room.canLoadConversation = false;
+        Service.getLastConversation(room.id, timestamp).then(
+            (result) => {
+                if (result) {
+                    LastConv = result;
+                    room.addConversation(result);
+                    room.canLoadConversation = true;
+                    timestamp = LastConv.timestamp;
+                }
+            }
+        )
+        
+        yield new Promise ((resolve, reject) => {
+            if (LastConv) {
+                resolve(LastConv);
+            }
+            else {
+                resolve(null);    
+            }
+        })  
+    } 
+}
+
 var Service = {
     origin: window.location.origin,
     getAllRooms: function() {
@@ -21,17 +48,17 @@ var Service = {
         getReq.open("GET", Service.origin + "/chat");
         getReq.send();
 
-        return new Promise((onResolve, onReject) => {
+        return new Promise((resolve, reject) => {
             getReq.onload = function() {
                 if(getReq.status == 200) {
-                    onResolve(JSON.parse(getReq.responseText));
+                    resolve(JSON.parse(getReq.responseText));
                 } else {
-                    onReject(new Error(getReq.responseText));
+                    reject(new Error(getReq.responseText));
                 }
             }
 
             getReq.onerror = function() {
-                onReject(new Error(getReq.responseText));
+                reject(new Error(getReq.responseText));
             }
         })
     },
@@ -41,21 +68,39 @@ var Service = {
         postReq.setRequestHeader('Content-type', 'application/json');
         postReq.send(JSON.stringify(data));
 
-        return new Promise((onResolve, onReject) => {
+        return new Promise((resolve, reject) => {
             postReq.onload = function() {
                 if(postReq.status == 200) {
-                    onResolve(JSON.parse(postReq.responseText));
+                    resolve(JSON.parse(postReq.responseText));
                 } else {
-                    onReject(new Error(postReq.responseText));
+                    reject(new Error(postReq.responseText));
                 }
             }
 
             postReq.onerror = function() {
-                onReject(new Error(postReq.responseText));
+                reject(new Error(postReq.responseText));
             }
         }) 
-    }
+    },
+    getLastConversation: function(roomId, before) {
+        var convReq = new XMLHttpRequest();
+        convReq.open("GET", "/chat/:" + roomId +"/messages?before=" + before);
+        convReq.send();
 
+        return new Promise((resolve, reject) => {
+            convReq.onload = function() {
+                if(convReq.status == 200) {
+                    resolve(JSON.parse(convReq.responseText));
+                } else {
+                    reject(new Error(convReq.responseText));
+                }
+            }
+
+            convReq.onerror = function() {
+                reject(new Error(convReq.responseText));
+            }
+        })
+    }
 };
 
 var profile = {
@@ -93,7 +138,7 @@ class LobbyView {
             }
             var newRoom = Service.addRoom(data);
             newRoom.then((result) => {
-                self.lobby.addRoom(result.id, result.name, result.image, result.messages);
+                self.lobby.addRoom(result._id, result.name, result.image, result.messages);
             },
             (reject) => {
                 console.log("Error: addRoom Proimse - " + reject);
@@ -108,7 +153,7 @@ class LobbyView {
             self.room = room;
             var li = document.createElement("li");
             var a = document.createElement("a");
-            a.href = "#/chat/" + self.room.id;
+            a.href = "#/chat/" + self.room._id;
             var image = document.createElement("img");
             image.src = self.room.image;
             a.appendChild(image);
@@ -171,9 +216,16 @@ class ChatView {
         this.buttonElem.addEventListener("click", function() {
             self.sendMessage();
         });
+
         this.inputElem.addEventListener("keyup", function(event) {
             if (event.code == 'Enter'  && !event.shiftKey) {
                 self.sendMessage();
+            }
+        });
+
+        this.chatElem.addEventListener('wheel', function(event) {
+            if (self.chatElem.scrollTop <= 0 && event.deltaY < 0 && self.room.canLoadConversation == true) {
+                self.room.getLastConversation.next();
             }
         });
     }
@@ -181,7 +233,7 @@ class ChatView {
     sendMessage() {
         this.room.addMessage(profile.username, this.inputElem.value);        
         var sendMsg = {
-            roomId: this.room.id,
+            roomId: this.room._id,
             username: profile.username,
             text: this.inputElem.value
         };
@@ -221,30 +273,51 @@ class ChatView {
             this.chatElem.appendChild(div_msg);
         }
 
-        this.room.onNewMessage = function(message) {
-            var div_msg = document.createElement("div");
-            var span_user = document.createElement("span");
-            var span_msg = document.createElement("span");
+        // this.room.onNewMessage = function(message) {
+        //     var div_msg = document.createElement("div");
+        //     var span_user = document.createElement("span");
+        //     var span_msg = document.createElement("span");
 
-            if(message.username == profile.username) {
-                div_msg.className = "message my-message";
-                span_user.className = "message-user";
-                var user = document.createTextNode(profile.username);
-                span_msg.className = "message-text";
-                var user_msg = document.createTextNode(message.text);
-            } else {
-                div_msg.className = "message";
-                span_user.className = "message-user";
-                var user = document.createTextNode(message.username);
-                span_msg.className = "message-text";
-                var user_msg = document.createTextNode(message.text);
+        //     if(message.username == profile.username) {
+        //         div_msg.className = "message my-message";
+        //         span_user.className = "message-user";
+        //         var user = document.createTextNode(profile.username);
+        //         span_msg.className = "message-text";
+        //         var user_msg = document.createTextNode(message.text);
+        //     } else {
+        //         div_msg.className = "message";
+        //         span_user.className = "message-user";
+        //         var user = document.createTextNode(message.username);
+        //         span_msg.className = "message-text";
+        //         var user_msg = document.createTextNode(message.text);
+        //     }
+        //     div_msg.appendChild(span_user);
+        //     span_user.appendChild(user);
+        //     div_msg.appendChild(span_msg);
+        //     span_msg.appendChild(user_msg);
+
+        //     self.chatElem.appendChild(div_msg);
+        // }
+
+        this.room.onFetchConversation = function(conversation) {
+            var msgs = conversation.messages;
+            var hb = Math.round(self.chatElem.scrollHeight);
+            for(var i = msgs.length - 1; i >= 0; i--) {
+                var chatdiv = document.createElement("div");
+                chatdiv.className = "message";
+                var userspan = document.createElement("span");
+                userspan.className = "message-user";
+                userspan.textContent = msgs[i].username;
+                var textspan = document.createElement("span");
+                textspan.className = "message-text";
+                textspan.textContent = msgs[i].text;
+                chatdiv.appendChild(userspan);
+                chatdiv.appendChild(textspan);
+                self.chatElem.prepend(chatdiv);
             }
-            div_msg.appendChild(span_user);
-            span_user.appendChild(user);
-            div_msg.appendChild(span_msg);
-            span_msg.appendChild(user_msg);
-
-            self.chatElem.appendChild(div_msg);
+            var ha = Math.round(self.chatElem.scrollHeight);
+            self.chatElem.scrollTop = ha - hb;
+            // console.log("scrollTop: " + self.chatElem.scrollTop)
         }
     }
 }
@@ -277,11 +350,16 @@ class ProfileView {
 
 
 class Room {
-    constructor (id, name, image = 'assets/everyone-icon.png', messages = []) {
-        this.id = id;
+    constructor (_id, name, image = 'assets/everyone-icon.png', messages = []) {
+        this._id = _id;
         this.name = name;
         this.image = image;
         this.messages = messages;
+
+        this.getLastConversation = makeConversationLoader(this);
+        this.canLoadConversation = true;
+
+        this.timeCreated = Date.now();
     }
 
     addMessage(username, text) {
@@ -296,6 +374,16 @@ class Room {
 
         if(this.onNewMessage) {
             this.onNewMessage(msg);
+        }
+    }
+
+    addConversation(conversation) {
+        for (var message of conversation.messages){
+            this.messages.push(message);
+        }
+    
+        if (this.onFetchConversation) {
+            this.onFetchConversation(conversation);
         }
     }
 }
@@ -314,10 +402,10 @@ class Lobby {
         return null;
     }
 
-    addRoom(id, name, image, messages) {
+    addRoom(_id, name, image, messages) {
         if(name != "" && name != null) {
-            var newRoom = new Room(id, name, image, messages);
-            this.rooms[id] = newRoom;
+            var newRoom = new Room(_id, name, image, messages);
+            this.rooms[_id] = newRoom;
 
             if(this.onNewRoom != undefined) {
                 this.onNewRoom(newRoom);
@@ -367,11 +455,11 @@ function main () {
         refresh.then(
             (result) => {
                 for(var refreshRoom of result) {
-                    if(refreshRoom.id in lobby.rooms) {
-                        lobby.getRoom(refreshRoom.id).name = refreshRoom.name; 
-                        lobby.getRoom(refreshRoom.id).image = refreshRoom.image;
+                    if(refreshRoom._id in lobby.rooms) {
+                        lobby.getRoom(refreshRoom._id).name = refreshRoom.name; 
+                        lobby.getRoom(refreshRoom._id).image = refreshRoom.image;
                     } else {
-                        lobby.addRoom(refreshRoom.id, refreshRoom.name, refreshRoom.image, refreshRoom.messages);
+                        lobby.addRoom(refreshRoom._id, refreshRoom.name, refreshRoom.image, refreshRoom.messages);
                     }
                 }
             },
@@ -382,7 +470,7 @@ function main () {
     }
 
     refreshLobby();
-    var timer = setInterval(refreshLobby, 10000);
+    setInterval(refreshLobby, 10000);
 
     socket.addEventListener("message", (event) => {
         var msgData = JSON.parse(event.data);

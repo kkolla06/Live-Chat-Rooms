@@ -7,6 +7,12 @@ const path = require('path');
 const fs = require('fs');
 const express = require('express');
 const ws = require('ws');
+const Database = require('./Database.js');
+const dotenv = require('dotenv').config();
+
+const messageBlockSize = 10;
+
+var db = new Database("mongodb://127.0.0.1:27017", "cpen322-messenger");
 
 const cpen322 = require('./cpen322-tester.js'); // Testing
 
@@ -33,60 +39,87 @@ app.listen(port, () => {
 });
 
 
-var chatrooms = [
-	{
-		id: "1001",
-		name: "Everyone in CPEN 400D",
-		image: "assets/everyone-icon.png"
-	},
-	{
-		id: "1002",
-		name: "Cancuks Fans",
-		image: "assets/canucks.png"
-	},
-	{
-		id: "1003",
-		name: "Foodies Only",
-		image: "assets/bibimbap.jpg"
-	}
-];
+var messages = {};
+db.getRooms().then((result) => {
+	result.forEach((roomObj) => {
+		messages[roomObj._id] = [];
+	})
+},
+(reject) => {
+	console.log("\nError0: db.getRooms() Error")
+});
 
-var messages = {
-	"1001": [],
-	"1002": [],
-	"1003": []
-};
+app.route('/chat/:room_id').get((req, res) => {	
+	var id = req.params['room_id'];
+	var room = db.getRoom(id);
+	room.then((result) => {
+		if(result) {
+			res.status(200).send(JSON.stringify(result));
+		} else {
+			res.status(404).send(new Error("Error"));
+		}
+	}).catch((err) => {
+		res.status(404).send(new Error("Error"));
+	})
+});
 
 app.route('/chat').get((req, res) => {	
-	var roomObjsArr = [];
-	for(var chatroom of chatrooms) {
-		var tempObj = {};
-		tempObj.id = chatroom.id;
-		tempObj.name = chatroom.name;
-		tempObj.image = chatroom.image;
-		tempObj.messages = messages[chatroom.id];
-		roomObjsArr.push(tempObj);
-	}
-	res.send(roomObjsArr);
+	db.getRooms().then((result) => {
+		var roomObjsArr = [];
+		result.forEach((roomObj) => {
+			messages[roomObj._id] = [];
+
+			var tempObj = {};
+			tempObj._id = roomObj._id;
+			tempObj.name = roomObj.name;
+			tempObj.image = roomObj.image;
+			tempObj.messages = messages[roomObj._id];
+			roomObjsArr.push(tempObj);
+		})
+		res.send(roomObjsArr);
+	},
+	(reject) => {
+		console.log("\nError2: db.getRooms() ");
+	});
   })
   .post((req, res) => {
 	var data = req.body;
-	if(data.name != null) {
-		var tempId = chatrooms.length + 1;
-		var room = {
-			id: tempId.toString(),
-			name: data.name,
-			image: data.image
-		}
-		chatrooms.push(room);
-		messages[room.id] = [];
+
+	var add = db.addRoom(data);
+	add.then(result => {
+		messages[result._id] = [];
 		res.status(200);
-		res.send(JSON.stringify(room));
-	} else {
+		res.send(result);
+	},
+	(reject) => {
 		res.status(400);
-		res.send("Error: Data does not contain 'name'");
-	}
-  });
+		res.send(new Error(reject));
+	})
+ });
+
+
+ 
+app.route('/chat/:room_id/messages').get((req, res) => {
+	var id = req.params['room_id'];
+	var before = req.query['before'];
+
+	db.getLastConversation(id, before).then((result) => {
+		console.log("result: " + result);
+		if(result) {
+			res.status(200);
+			res.send(result);
+		} else {
+			res.status(404);
+			res.send(new Error("getLastConversation Error"));
+		}
+	},
+	(reject) => {
+		res.status(404);
+		res.send(new Error("server - getLastConv" + reject));
+	})
+});
+
+
 
 const broker = new ws.Server({port: 8000});
 
@@ -105,10 +138,29 @@ broker.on('connection', (ws) => {
 			username: msg.username
 		};
 		messages[msg.roomId].push(msgObj);
+
+		if(messages[msg.roomId].length == messageBlockSize) {
+			var conv = {
+                'room_id' : msg._id,
+                'timestamp' : Date.now(),
+                'messages' : messages[msg.roomId]
+            };
+	
+			console.log("msgs: " + JSON.stringify(messages[msg.roomId]));
+
+			db.addConversation(conv).then((resolve) => {
+                    messages[msg.roomId] = [];
+					console.log("resolve: " + resolve);
+                }, 
+				(reject)=> {
+					console.log(new Error("server - broker - addConv"));
+				}
+            );
+		}
 		
 	});
 });
 
 
-cpen322.connect('http://52.43.220.29/cpen322/test-a3-server.js');
-cpen322.export(__filename, { app, chatrooms, messages, broker });
+cpen322.connect('http://52.43.220.29/cpen322/test-a4-server.js');
+cpen322.export(__filename, { app, messages, broker, db, messageBlockSize });

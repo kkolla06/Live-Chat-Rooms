@@ -24,6 +24,23 @@
     background-color: lightblue;
 }
 
+/*  */
+.content {
+    height: 90vh;
+    box-sizing: border-box;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+}
+/*  */
+
+.room-list {
+    padding: 0;
+    margin: 0;
+    max-height: 92%;
+    overflow-y: scroll;
+}
+
 .room-list a{             
     display: inline-block;
     align-items: left;
@@ -63,3 +80,13 @@
     clear: both;
     background-color: lightskyblue;
 }
+
+/*  */
+.message-list {
+    background-color: #ededed;
+    font-size: 140%;
+    min-height: 80%;
+    max-height: 83%;
+    overflow-y: scroll;
+}
+/*  */
