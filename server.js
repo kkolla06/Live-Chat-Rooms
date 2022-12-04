@@ -8,11 +8,8 @@ const fs = require('fs');
 const express = require('express');
 const ws = require('ws');
 const Database = require('./Database.js');
-const dotenv = require('dotenv').config();
-
-const messageBlockSize = 10;
-
-var db = new Database("mongodb://127.0.0.1:27017", "cpen322-messenger");
+const SessionManager = require('./SessionManager');
+const crypto = require('crypto');
 
 const cpen322 = require('./cpen322-tester.js'); // Testing
 
@@ -24,6 +21,12 @@ function logRequest(req, res, next){
 const host = 'localhost';
 const port = 3000;
 const clientApp = path.join(__dirname, 'client');
+
+var db = new Database("mongodb://127.0.0.1:27017", "cpen322-messenger");
+const broker = new ws.Server({port: 8000});
+var sessionManager = new SessionManager();
+
+const messageBlockSize = 10;
 
 // express app
 let app = express();
@@ -47,6 +50,29 @@ db.getRooms().then((result) => {
 },
 (reject) => {
 	console.log("\nError0: db.getRooms() Error")
+});
+
+var isCorrectPassword = function(password, saltedHash) {
+	var salt = saltedHash.substring(0,20);
+	var pass = saltedHash.substring(20,64);
+    var saltedPassword = password + salt;
+	return (pass === crypto.createHash("SHA256").update(saltedPassword).digest('base64'))
+}
+
+app.route('/login').post((req, res) => {
+	var user = {
+		"username": req.body["username"],
+		"password": req.body["password"]
+	};
+
+	db.getUser(user.username).then((resolve) => {
+		if(resolve && isCorrectPassword(user.password, resolve.password)) {
+			sessionManager.createSession(res, resolve.username);
+			res.redirect('/');
+		} else {
+			res.redirect('/login');
+		}
+	})
 });
 
 app.route('/chat/:room_id').get((req, res) => {	
@@ -121,8 +147,6 @@ app.route('/chat/:room_id/messages').get((req, res) => {
 
 
 
-const broker = new ws.Server({port: 8000});
-
 broker.on('connection', (ws) => {
 	ws.on('message', (data) => {
 		var msg = JSON.parse(data);
@@ -164,5 +188,4 @@ broker.on('connection', (ws) => {
 
 // cpen322.connect('http://52.43.220.29/cpen322/test-a4-server.js');	// Tests for Asst 4
 cpen322.connect('http://52.43.220.29/cpen322/test-a5-server.js');
-// cpen322.export(__filename, { app, messages, broker, db, messageBlockSize, sessionManager, isCorrectPassword });
-cpen322.export(__filename, { app, messages, broker, db, messageBlockSize });
+cpen322.export(__filename, { app, messages, broker, db, messageBlockSize, sessionManager, isCorrectPassword });

@@ -136,17 +136,7 @@ Database.prototype.addConversation = function(conversation){
 Database.prototype.getUser = function(username){
 	return this.connected.then(db =>
 		new Promise((resolve, reject) => {
-            // db.collection('users').find({}).toArray().then((user) => {
-			// 	if(user.username == username) {
-			// 		resolve(user);
-			// 	}
-            // },
-			// (err) => {
-			// 	resolve(null);
-			// });
-
 			db.collection('users').find({}).forEach((user) => {
-				console.log("\n\n!!!user: " + JSON.stringify(user));
                 if(user && user.username == username) {
 					resolve(user);
 				}
