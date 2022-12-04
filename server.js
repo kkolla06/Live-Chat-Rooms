@@ -162,5 +162,7 @@ broker.on('connection', (ws) => {
 });
 
 
-cpen322.connect('http://52.43.220.29/cpen322/test-a4-server.js');
+// cpen322.connect('http://52.43.220.29/cpen322/test-a4-server.js');	// Tests for Asst 4
+cpen322.connect('http://52.43.220.29/cpen322/test-a5-server.js');
+// cpen322.export(__filename, { app, messages, broker, db, messageBlockSize, sessionManager, isCorrectPassword });
 cpen322.export(__filename, { app, messages, broker, db, messageBlockSize });

@@ -480,6 +480,13 @@ function main () {
 
     // Exporting variables for testing
     cpen322.export(arguments.callee, {renderRoute, lobbyView, chatView, profileView, lobby, refreshLobby, socket});
+
+    cpen322.setDefault("webSocketServer", 'ws://localhost:8000');
+    cpen322.setDefault("image", 'assets/everyone-icon.png');
+    cpen322.setDefault("testUser2", { username: 'bob', password: 'password', saltedHash: 'MIYB5u3dFYipaBtCYd9fyhhanQkuW4RkoRTUDLYtwd/IjQvYBgMHL+eoZi3Rzhw=' });
+    cpen322.setDefault("testUser1", { username: 'alice', password: 'secret', saltedHash: '1htYvJoddV8mLxq3h7C26/RH2NPMeTDxHIxWn49M/G0wxqh/7Y3cM+kB1Wdjr4I=' });
+    cpen322.setDefault("cookieName", 'cpen322-session');
+    cpen322.setDefault("testRoomId", 'room-1');
 }
 
 window.addEventListener("load", main);

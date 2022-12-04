@@ -97,9 +97,12 @@ Database.prototype.getLastConversation = function(room_id, before){
                     lastConv = conv;
                 }
             }, 
-            (error) => {
-                resolve(lastConv);
-				reject(new Error("Conversation error: error"));
+            (err) => {
+				if (err) {
+					reject(new Error("Conversation error: error"));
+				} else {
+                	resolve(lastConv);
+				}
             })
 		})
 	)
@@ -128,6 +131,35 @@ Database.prototype.addConversation = function(conversation){
             }
 		})
 	)
+}
+
+Database.prototype.getUser = function(username){
+	return this.connected.then(db =>
+		new Promise((resolve, reject) => {
+            // db.collection('users').find({}).toArray().then((user) => {
+			// 	if(user.username == username) {
+			// 		resolve(user);
+			// 	}
+            // },
+			// (err) => {
+			// 	resolve(null);
+			// });
+
+			db.collection('users').find({}).forEach((user) => {
+				console.log("\n\n!!!user: " + JSON.stringify(user));
+                if(user && user.username == username) {
+					resolve(user);
+				}
+            }, 
+            (err) => {
+                if (err) {
+					reject(new Error("Get User error"));
+				} else {
+                	resolve(null);
+				}
+            })
+        })
+    )	
 }
 
 module.exports = Database;
