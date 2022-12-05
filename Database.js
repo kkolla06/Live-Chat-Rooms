@@ -29,6 +29,16 @@ function Database(mongoUrl, dbName){
 	);
 }
 
+var sanitize = function (string) {
+    const map = {
+        '&': '',
+        '<': '',
+        '>': ''
+    };
+    const reg = /[&<>/]/ig;
+    return string.replace(reg, (match)=>(map[match]));
+}
+
 Database.prototype.getRooms = function(){
 	return this.connected.then(db =>
 		new Promise((resolve, reject) => {
@@ -114,20 +124,16 @@ Database.prototype.addConversation = function(conversation){
 			/* TODO: insert a conversation in the "conversations" collection in `db`
 			 * and resolve the newly added conversation */
 
-			// console.log("CONV1: " + conversation.room_id);
-			// console.log("CONV1: " + conversation.timestamp);
-			// console.log("CONV1: " + conversation.messages);
-
+			for(var i = 0; i<conversation.messages; i++) {
+				conversation.messages[i] = sanitize(conversation.messages[i]);
+			}
 
             if(!(conversation.room_id && conversation.timestamp && conversation.messages)) {
                 reject(new Error("Conversation Fields Missing"));
             } else {
                 db.collection('conversations').insertOne(conversation).then(conv => {
-					console.log("Conv Added: " + JSON.stringify(conversation));
 					resolve(conversation);
 				})
-				// db.collection('conversations').insertOne(conversation);
-				// resolve(conversation);
             }
 		})
 	)

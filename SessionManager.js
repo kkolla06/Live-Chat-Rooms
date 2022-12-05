@@ -26,11 +26,35 @@ function SessionManager (){
 	};
 
 	this.deleteSession = (request) => {
-		/* To be implemented */
+        delete request.username;
+        delete sessions[request.session];
+        delete request.session;
 	};
 
 	this.middleware = (request, response, next) => {
-		/* To be implemented */
+        if(request.headers.cookie) {
+            var cookies = request.headers.cookie.split(';');
+            
+            var found = false;
+            for(var i = 0; i<cookies.length; i++) {
+		        var val = cookies[i].split('=');
+                var cookieVal = val[1];
+
+                if(cookieVal in sessions) {
+                    request.username = sessions[cookieVal]['username'];
+                    request.session = cookieVal;
+                    found = true;
+                    next();
+                    break;
+                } 
+            }
+            if(!found) {
+                next(new SessionError());
+            }
+
+        } else {
+            next(new SessionError());
+        }
 	};
 
 	// this function is used by the test script.

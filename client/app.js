@@ -41,6 +41,16 @@ function* makeConversationLoader(room) {
     } 
 }
 
+var sanitize = function (string) {
+    const map = {
+        '&': '',
+        '<': '',
+        '>': ''
+    };
+    const reg = /[&<>/]/ig;
+    return string.replace(reg, (match)=>(map[match]));
+}
+
 var Service = {
     origin: window.location.origin,
     getAllRooms: function() {
@@ -98,6 +108,25 @@ var Service = {
 
             convReq.onerror = function() {
                 reject(new Error(convReq.responseText));
+            }
+        })
+    },
+    getProfile: function() {
+        var profReq = new XMLHttpRequest();
+        profReq.open("GET", "/profile");
+        profReq.send();
+
+        return new Promise((resolve, reject) => {
+            profReq.onload = function() {
+                if(profReq.status == 200) {
+                    resolve(JSON.parse(profReq.responseText));
+                } else {
+                    reject(new Error(profReq.responseText));
+                }
+            }
+
+            profReq.onerror = function() {
+                reject(new Error(profReq.responseText));
             }
         })
     }
@@ -231,11 +260,11 @@ class ChatView {
     }
 
     sendMessage() {
-        this.room.addMessage(profile.username, this.inputElem.value);        
+        var text = this.inputElem.value;
+        this.room.addMessage(profile.username, text);        
         var sendMsg = {
             roomId: this.room._id,
-            username: profile.username,
-            text: this.inputElem.value
+            text: text
         };
         this.socket.send(JSON.stringify(sendMsg));
         this.inputElem.value = '';
@@ -273,31 +302,31 @@ class ChatView {
             this.chatElem.appendChild(div_msg);
         }
 
-        // this.room.onNewMessage = function(message) {
-        //     var div_msg = document.createElement("div");
-        //     var span_user = document.createElement("span");
-        //     var span_msg = document.createElement("span");
+        this.room.onNewMessage = function(message) {
+            var div_msg = document.createElement("div");
+            var span_user = document.createElement("span");
+            var span_msg = document.createElement("span");
 
-        //     if(message.username == profile.username) {
-        //         div_msg.className = "message my-message";
-        //         span_user.className = "message-user";
-        //         var user = document.createTextNode(profile.username);
-        //         span_msg.className = "message-text";
-        //         var user_msg = document.createTextNode(message.text);
-        //     } else {
-        //         div_msg.className = "message";
-        //         span_user.className = "message-user";
-        //         var user = document.createTextNode(message.username);
-        //         span_msg.className = "message-text";
-        //         var user_msg = document.createTextNode(message.text);
-        //     }
-        //     div_msg.appendChild(span_user);
-        //     span_user.appendChild(user);
-        //     div_msg.appendChild(span_msg);
-        //     span_msg.appendChild(user_msg);
+            if(message.username == profile.username) {
+                div_msg.className = "message my-message";
+                span_user.className = "message-user";
+                var user = document.createTextNode(profile.username);
+                span_msg.className = "message-text";
+                var user_msg = document.createTextNode(sanitize(message.text));
+            } else {
+                div_msg.className = "message";
+                span_user.className = "message-user";
+                var user = document.createTextNode(message.username);
+                span_msg.className = "message-text";
+                var user_msg = document.createTextNode(sanitize(message.text));
+            }
+            div_msg.appendChild(span_user);
+            span_user.appendChild(user);
+            div_msg.appendChild(span_msg);
+            span_msg.appendChild(user_msg);
 
-        //     self.chatElem.appendChild(div_msg);
-        // }
+            self.chatElem.appendChild(div_msg);
+        }
 
         this.room.onFetchConversation = function(conversation) {
             var msgs = conversation.messages;
@@ -317,7 +346,6 @@ class ChatView {
             }
             var ha = Math.round(self.chatElem.scrollHeight);
             self.chatElem.scrollTop = ha - hb;
-            // console.log("scrollTop: " + self.chatElem.scrollTop)
         }
     }
 }
@@ -366,9 +394,14 @@ class Room {
         if(text.trim() == "") {
             return 0;
         }
+
+        console.log("\ntext1: " + text);
+        var sanitizedText = sanitize(text);
+        console.log("\nSanitizdText1: " + sanitizedText);
+
         var msg = {
             username: username,
-            text: text
+            text: sanitizedText
         };
         this.messages.push(msg);
 
@@ -469,6 +502,11 @@ function main () {
         )
     }
 
+    Service.getProfile().then((result) => {
+        profile.username = result.username;
+    }
+    );
+    
     refreshLobby();
     setInterval(refreshLobby, 10000);
 
