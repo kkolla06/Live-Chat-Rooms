@@ -173,16 +173,12 @@ app.route('/profile').all(sessionManager.middleware).get((req, res, next) => {
 	res.send(ret);
 });
 
-app.use(/^\/app\.js$/i, sessionManager.middleware, express.static(clientApp, { extensions: ['html'] }));
 app.use('/app.js', sessionManager.middleware, express.static(clientApp + '/app.js'));
 
-app.use(/^\/index\.html$/i, sessionManager.middleware, express.static(clientApp, { extensions: ['html'] }));
 app.use('/index.html', sessionManager.middleware, express.static(clientApp + '/index.html', {extensions: 'html'}));
 
-app.use(/^\/index$/i, sessionManager.middleware, express.static(clientApp, { extensions: ['html'] }));
 app.use('/index', sessionManager.middleware);
 
-app.use(/^\/$/i, sessionManager.middleware, express.static(clientApp, { extensions: ['html'] }));
 app.use('/', sessionManager.middleware);
 
 
